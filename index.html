@@ -1,1 +1,258 @@
-hello
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>信息工程学院</title>
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .box {
+            width: 300px;
+            height: 300px;
+            background-color: rgba(202, 202, 202, 0.4);
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            border-radius: 15px;
+        }
+
+        .item {
+            width: 200px;
+            height: 50px;
+            background-color: rgba(0, 217, 255, 0.5);
+            border-radius: 15px;
+            font-size: 24px;
+            line-height: 50px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .topbar {
+            padding-left: 10px;
+            width: 100%;
+            height: 50px;
+            background-color: rgb(255, 255, 255);
+            line-height: 100px;
+            font-size: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .topbar img {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="topbar">
+        <img src="https://hlyb.imcyl.top/addScore/img/logo.png" alt="" srcset="">
+        <div>加减分单生成</div>
+    </div>
+    <div class="box">
+        <div class="item">
+            加分单生成
+        </div>
+        <div class="item">
+            减分单生成
+        </div>
+        <div style="padding: 10px;color:#fff">
+            提示：<br>未适配电脑端，请按下Ctrl+滚轮缩放页面至50%后生成！
+        </div>
+    </div>
+    <div style="position: fixed;top: 0;left:0;bottom: 0;right: 0;z-index: -1">
+        <canvas id="canvas" style="background-color: rgb(68, 132, 229);"></canvas>
+    </div>
+
+    <script type="text/javascript">
+        let item = document.querySelectorAll('.item')
+        item[0].onclick = function () {
+            location.href = 'https://hlyb.imcyl.top/addScore/add.html'
+        }
+        item[1].onclick = function () {
+            location.href = 'https://hlyb.imcyl.top/addScore/delete.html'
+        }
+
+
+
+        const canvas = document.getElementById('canvas')
+        const ctx = canvas.getContext('2d')
+        let width = window.innerWidth
+        let height = window.innerHeight
+
+        let dotsNum = 50 // 点的数量
+        let radius = 1 // 圆的半径，连接线宽度的一半
+        let fillStyle = 'rgba(255,255,255,0.5)' // 点的颜色
+        let lineWidth = radius * 2
+        let connection = 120 // 连线最大距离
+        let followLength = 80 // 鼠标跟随距离
+
+        let dots = []
+        let animationFrame = null
+        let mouseX = null
+        let mouseY = null
+
+        function addCanvasSize() { // 改变画布尺寸
+            width = window.innerWidth
+            height = window.innerHeight
+            canvas.width = width
+            canvas.height = height
+            ctx.clearRect(0, 0, width, height)
+            dots = []
+            if (animationFrame) window.cancelAnimationFrame(animationFrame)
+            initDots(dotsNum)
+            moveDots()
+        }
+
+        function mouseMove(e) {
+            mouseX = e.clientX
+            mouseY = e.clientY
+        }
+
+        function mouseOut(e) {
+            mouseX = null
+            mouseY = null
+        }
+
+        function mouseClick() {
+            for (const dot of dots) dot.elastic()
+        }
+
+        class Dot {
+            constructor(x, y) {
+                this.x = x
+                this.y = y
+                this.speedX = Math.random() * 2 - 1
+                this.speedY = Math.random() * 2 - 1
+                this.follow = false
+            }
+            draw() {
+                ctx.beginPath()
+                ctx.arc(this.x, this.y, radius, 0, 2 * Math.PI)
+                ctx.fill()
+                ctx.closePath()
+            }
+            move() {
+                if (this.x >= width || this.x <= 0) this.speedX = -this.speedX
+                if (this.y >= height || this.y <= 0) this.speedY = -this.speedY
+                this.x += this.speedX
+                this.y += this.speedY
+                if (this.speedX >= 1) this.speedX--
+                if (this.speedX <= -1) this.speedX++
+                if (this.speedY >= 1) this.speedY--
+                if (this.speedY <= -1) this.speedY++
+                this.correct()
+                this.connectMouse()
+                this.draw()
+            }
+            correct() { // 根据鼠标的位置修正
+                if (!mouseX || !mouseY) return
+                let lengthX = mouseX - this.x
+                let lengthY = mouseY - this.y
+                const distance = Math.sqrt(lengthX ** 2 + lengthY ** 2)
+                if (distance <= followLength) this.follow = true
+                else if (this.follow === true && distance > followLength && distance <= followLength + 8) {
+                    let proportion = followLength / distance
+                    lengthX *= proportion
+                    lengthY *= proportion
+                    this.x = mouseX - lengthX
+                    this.y = mouseY - lengthY
+                } else this.follow = false
+            }
+            connectMouse() { // 点与鼠标连线
+                if (mouseX && mouseY) {
+                    let lengthX = mouseX - this.x
+                    let lengthY = mouseY - this.y
+                    const distance = Math.sqrt(lengthX ** 2 + lengthY ** 2)
+                    if (distance <= connection) {
+                        opacity = (1 - distance / connection) * 0.5
+                        ctx.strokeStyle = `rgba(255,255,255,${opacity})`
+                        ctx.beginPath()
+                        ctx.moveTo(this.x, this.y)
+                        ctx.lineTo(mouseX, mouseY);
+                        ctx.stroke();
+                        ctx.closePath()
+                    }
+                }
+            }
+            elastic() { // 鼠标点击后的弹射
+                let lengthX = mouseX - this.x
+                let lengthY = mouseY - this.y
+                const distance = Math.sqrt(lengthX ** 2 + lengthY ** 2)
+                if (distance >= connection) return
+                const rate = 1 - distance / connection // 距离越小此值约接近1
+                this.speedX = 40 * rate * -lengthX / distance
+                this.speedY = 40 * rate * -lengthY / distance
+            }
+        }
+
+        function initDots(num) { // 初始化粒子
+            ctx.fillStyle = fillStyle
+            ctx.lineWidth = lineWidth
+            for (let i = 0; i < num; i++) {
+                const x = Math.floor(Math.random() * width)
+                const y = Math.floor(Math.random() * height)
+                const dot = new Dot(x, y)
+                dot.draw()
+                dots.push(dot)
+            }
+        }
+
+        function moveDots() { // 移动并建立点与点之间的连接线
+            ctx.clearRect(0, 0, width, height)
+            for (const dot of dots) {
+                dot.move()
+            }
+            for (let i = 0; i < dots.length; i++) {
+                for (let j = i; j < dots.length; j++) {
+                    const distance = Math.sqrt((dots[i].x - dots[j].x) ** 2 + (dots[i].y - dots[j].y) ** 2)
+                    if (distance <= connection) {
+                        opacity = (1 - distance / connection) * 0.5
+                        ctx.strokeStyle = `rgba(255,255,255,${opacity})`
+                        ctx.beginPath()
+                        ctx.moveTo(dots[i].x, dots[i].y)
+                        ctx.lineTo(dots[j].x, dots[j].y);
+                        ctx.stroke();
+                        ctx.closePath()
+                    }
+                }
+            }
+            animationFrame = window.requestAnimationFrame(moveDots)
+        }
+
+        addCanvasSize()
+
+        initDots(dotsNum)
+        moveDots()
+
+        document.onmousemove = mouseMove
+        document.onmouseout = mouseOut
+        document.onclick = mouseClick
+        window.onresize = addCanvasSize
+    </script>
+
+</body>
+
+</html>
